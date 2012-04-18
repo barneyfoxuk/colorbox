@@ -1,5 +1,5 @@
 // ColorBox v1.3.19 - jQuery lightbox plugin
-// (c) 2011 Jack Moore - jacklmoore.com
+// © 2011 Jack Moore - jacklmoore.com
 // License: http://www.opensource.org/licenses/mit-license.php
 (function ($, document, window) {
     var
@@ -46,6 +46,7 @@
         onComplete: false,
         onCleanup: false,
         onClosed: false,
+        onLoadError: false,
         overlayClose: true,		
         escKey: true,
         arrowKey: true,
@@ -54,6 +55,8 @@
         left: false,
         right: false,
         fixed: false,
+        autoPosition: false,
+        pageContent: false,
         data: undefined
     },
 	
@@ -96,6 +99,7 @@
     $prev,
     $close,
     $groupControls,
+    $pageContent,
     
     // Variables for cached values or use across multiple functions
     settings,
@@ -111,6 +115,7 @@
     closing,
     loadingTimer,
     publicMethod,
+    openingScrollTop,
     div = "div",
     init;
 
@@ -421,6 +426,8 @@
 		
         options = options || {};
         
+        $pageContent = $('#'+options.pageContent); //cache the jQuery object containing the normal website content
+        
         appendHTML();
 
 		if (addBindings()) {
@@ -458,21 +465,47 @@
         scrollLeft = $window.scrollLeft();
         
         $window.unbind('resize.' + prefix);
-
+				
         // remove the modal so that it doesn't influence the document width/height        
         $box.css({top: -9e4, left: -9e4});
-
+				
+				//autoPositioning uses choses the best positioning method depending on the hight of the colorbox.			
+				//if the colorbox's hight is smaller than the browser window use fixed positioning
+				if(settings.autoPosition && ($box.find('#cboxLoadedContent').height() < $(window).height()) )
+				{
+					settings.fixed = true;
+					$pageContent.css({position: 'relative'})
+				}
+				//if the colorbox is taller then use absolute position on the colorbox and fixed on the page content
+				else
+				{
+					if($window.scrollTop() != 0) { 
+						openingScrollTop = $window.scrollTop(); 
+					}
+					
+					settings.fixed = false;
+					log(openingScrollTop);
+					$pageContent.css({position: 'fixed', top: '-'+openingScrollTop+'px'})
+				}
+				
         if (settings.fixed && !isIE6) {
-			offset.top -= scrollTop;
-			offset.left -= scrollLeft;
+						offset.top -= scrollTop;
+						offset.left -= scrollLeft;
             $box.css({position: 'fixed'});
         } else {
-            top = scrollTop;
+        		if(settings.autoPosition)
+        		{
+           	 	top = scrollTop;
+            }
+            else
+            {
+            	top = 20;
+            }
             left = scrollLeft;
             $box.css({position: 'absolute'});
         }
 
-		// keeps the top and left positions within the browser's viewport.
+				// keeps the top and left positions within the browser's viewport.
         if (settings.right !== false) {
             left += Math.max($window.width() - settings.w - loadedWidth - interfaceWidth - setSize(settings.right, 'x'), 0);
         } else if (settings.left !== false) {
@@ -491,44 +524,44 @@
 
         $box.css({top: offset.top, left: offset.left});
 
-		// setting the speed to 0 to reduce the delay between same-sized content.
-		speed = ($box.width() === settings.w + loadedWidth && $box.height() === settings.h + loadedHeight) ? 0 : speed || 0;
-        
-		// this gives the wrapper plenty of breathing room so it's floated contents can move around smoothly,
-		// but it has to be shrank down around the size of div#colorbox when it's done.  If not,
-		// it can invoke an obscure IE bug when using iframes.
-		$wrap[0].style.width = $wrap[0].style.height = "9999px";
-		
-		function modalDimensions(that) {
-			$topBorder[0].style.width = $bottomBorder[0].style.width = $content[0].style.width = that.style.width;
-			$content[0].style.height = $leftBorder[0].style.height = $rightBorder[0].style.height = that.style.height;
-		}
-		
-		$box.dequeue().animate({width: settings.w + loadedWidth, height: settings.h + loadedHeight, top: top, left: left}, {
-			duration: speed,
-			complete: function () {
-				modalDimensions(this);
+				// setting the speed to 0 to reduce the delay between same-sized content.
+				speed = ($box.width() === settings.w + loadedWidth && $box.height() === settings.h + loadedHeight) ? 0 : speed || 0;
+		        
+				// this gives the wrapper plenty of breathing room so it's floated contents can move around smoothly,
+				// but it has to be shrank down around the size of div#colorbox when it's done.  If not,
+				// it can invoke an obscure IE bug when using iframes.
+				$wrap[0].style.width = $wrap[0].style.height = "9999px";
 				
-				active = false;
-				
-				// shrink the wrapper down to exactly the size of colorbox to avoid a bug in IE's iframe implementation.
-				$wrap[0].style.width = (settings.w + loadedWidth + interfaceWidth) + "px";
-				$wrap[0].style.height = (settings.h + loadedHeight + interfaceHeight) + "px";
-                
-                if (settings.reposition) {
-	                setTimeout(function () {  // small delay before binding onresize due to an IE8 bug.
-	                    $window.bind('resize.' + prefix, publicMethod.position);
-	                }, 1);
-	            }
-
-				if (loadedCallback) {
-					loadedCallback();
+				function modalDimensions(that) {
+					$topBorder[0].style.width = $bottomBorder[0].style.width = $content[0].style.width = that.style.width;
+					$content[0].style.height = $leftBorder[0].style.height = $rightBorder[0].style.height = that.style.height;
 				}
-			},
-			step: function () {
-				modalDimensions(this);
-			}
-		});
+				
+				$box.dequeue().animate({width: settings.w + loadedWidth, height: settings.h + loadedHeight, top: top, left: left}, {
+					duration: speed,
+					complete: function () {
+						modalDimensions(this);
+						
+						active = false;
+						
+						// shrink the wrapper down to exactly the size of colorbox to avoid a bug in IE's iframe implementation.
+						$wrap[0].style.width = (settings.w + loadedWidth + interfaceWidth) + "px";
+						$wrap[0].style.height = (settings.h + loadedHeight + interfaceHeight) + "px";
+		                
+		                if (settings.reposition) {
+			                setTimeout(function () {  // small delay before binding onresize due to an IE8 bug.
+			                    $window.bind('resize.' + prefix, publicMethod.position);
+			                }, 1);
+			            }
+		
+						if (loadedCallback) {
+							loadedCallback();
+						}
+					},
+					step: function () {
+						modalDimensions(this);
+					}
+				});
 	};
 
 	publicMethod.resize = function (options) {
@@ -816,7 +849,16 @@
 			}, 1);
 		} else if (href) {
 			$loadingBay.load(href, settings.data, function (data, status, xhr) {
-				prep(status === 'error' ? $tag(div, 'Error').text('Request unsuccessful: ' + xhr.statusText) : $(this).contents());
+				
+				if(status !== 'error')
+					prep($(this).contents());
+				else
+				{
+					if(settings.onLoadError)
+						settings.onLoadError(data, status, xhr);
+					else
+						prep($tag(div, 'Error').text('Request unsuccessful: ' + xhr.statusText));
+				}
 			});
 		}
 	};
@@ -839,6 +881,11 @@
 	// Note: to use this within an iframe use the following format: parent.$.fn.colorbox.close();
 	publicMethod.close = function () {
 		if (open && !closing) {
+			
+			if(settings.autoPosition) { 
+				$pageContent.css({position: 'relative', top: '0px'});
+				$(document).scrollTop(openingScrollTop)
+			}
 			
 			closing = true;
 			
