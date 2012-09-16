@@ -1,0 +1,9 @@
+{
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/barneyfoxuk/colorbox.git"
+  },
+  "dependencies": {
+    "jquery": ">=1.7"
+  }
+}
