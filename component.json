@@ -1,8 +1,0 @@
-{
-  "name": "barney-colorbox",
-  "version": "1.0",
-  "main": "./colorbox/jquery.colorbox.js",
-  "dependencies": {
-    "jquery": "1.7.2"
-  }
-}
